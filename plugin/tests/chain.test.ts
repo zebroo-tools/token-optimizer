@@ -12,11 +12,11 @@ const TABLE = '# Context triage — 2 large tool outputs, ~9k tokens\n\nDroppabl
 // mtime the test moves, a triage run whose result the test sets, and a log
 // of the slash commands the mod runs (with their arguments).
 function host(engine: Engine, on: On) {
-  const state = { ran: [] as string[], args: [] as string[], argv: [] as string[], triage: { exitCode: 0, stdout: TABLE, stderr: '' }, nextMtime: 0, toasts: [] as string[], shown: [] as string[], appended: [] as string[], context: [] as string[] }
+  const state = { ran: [] as string[], args: [] as string[], argv: [] as string[], triage: { exitCode: 0, stdout: TABLE, stderr: '' }, nextMtime: 0, now: 0, toasts: [] as string[], shown: [] as string[], appended: [] as string[], context: [] as string[] }
   on('session.cwd', () => ({ value: `${TICKET}/ZO-1-repo` }))
   on('fs.exists', (_$, e) => ({ value: e.path === `${TICKET}/TASK.md` }))
   on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: state.nextMtime, isLink: false } }))
-  on('clock.now', () => ({ value: 0 }))
+  on('clock.now', () => ({ value: state.now }))
   on('clock.after', () => ({ value: undefined }))
   on('ui.status', () => ({ value: undefined }))
   on('ui.log', () => ({ value: undefined }))
@@ -111,6 +111,41 @@ test('chain stops without /clear when NEXT.md was not written', async ($, on) =>
 
   expect(h.ran).toEqual(['compress'])
   expect(h.toasts[0]).toContain('NEXT.md was not written')
+})
+
+test('a prompt typed into the /compress turn after NEXT.md was written runs /compress again before /clear', async ($, on) => {
+  const h = host($, on)
+
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  h.nextMtime = 10
+  h.now = 20
+  await $.prompt.submit({ text: 'und noch der Dialog', wait: false, turnId: 't1', origin: { kind: 'composer' } })
+  await $.turn.complete({ answer: 'NEXT.md steht, dann /clear', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle(() => h.ran.length >= 2)
+  expect(h.ran).toEqual(['compress', 'compress'])
+  expect(h.args[1]).toContain('Nachtrag vom token-optimizer')
+  expect(h.args[1]).toContain('Droppable: ~4k of ~9k tokens.')
+
+  await $.turn.start({ text: '/compress', turnId: 't2' })
+  h.nextMtime = 30
+  await $.turn.complete({ answer: 'NEXT.md aktualisiert', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' })
+  await settle(() => h.ran.length >= 4)
+  expect(h.ran).toEqual(['compress', 'compress', 'clear', 'whats-next'])
+})
+
+test('a subagent turn does not claim the /compress turn', async ($, on) => {
+  const h = host($, on)
+
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+  await $.turn.start({ text: 'sub', turnId: 'a1', agentId: 'agent-1' })
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  h.nextMtime = 1
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle(() => h.ran.length >= 3)
+  expect(h.ran).toEqual(['compress', 'clear', 'whats-next'])
 })
 
 const ENGINE = { kind: 'suggestion' } as const

@@ -23,6 +23,8 @@ const chain = {
   turn: undefined as string | undefined, // the /compress or /whats-next turn
   nextPath: '',
   nextMtime: 0,
+  args: '', // the triage handed to /compress, reused when it has to run again
+  promptAt: 0, // last prompt the person typed while /compress was pending or running
   base: 0,
   tokens: 0,
   suggestion: undefined as string | undefined, // last dim suggestion while idle
@@ -88,13 +90,29 @@ async function startChain($: EngineInterface) {
   chain.phase = 'compress'
   chain.since = await $.clock.now()
   chain.turn = undefined
+  chain.promptAt = 0
   chain.base = chain.tokens
   chain.restore = chain.suggestion
   $.ui.status('/compress …')
   $.ui.log(`start at ${k(chain.tokens)}, NEXT.md = ${chain.nextPath}` +
     (chain.restore ? `, suggestion kept: ${chain.restore}` : ''))
-  const args = await triage($)
+  chain.args = await triage($)
   $.ui.status('/compress …')
+  void $.command.run({ command: 'compress', args: chain.args }).catch(err => reset($, `/compress failed: ${err}`))
+}
+
+// Prompts typed while /compress runs land in its turn, and the turn works on
+// them: NEXT.md written before them misses that work. Run /compress again
+// (same triage) before /clear rather than handing over a stale NEXT.md.
+async function compressAgain($: EngineInterface, written: number) {
+  chain.nextMtime = written
+  chain.since = await $.clock.now()
+  chain.turn = undefined
+  chain.promptAt = 0
+  $.ui.status('/compress (again) …')
+  $.ui.log('prompts arrived during /compress, NEXT.md is older: running /compress again')
+  const args = 'Nachtrag vom token-optimizer: Während des letzten /compress kamen neue Aufträge dazu. ' +
+    'NEXT.md auf den aktuellen Stand bringen (knapp halten).\n\n' + chain.args
   void $.command.run({ command: 'compress', args }).catch(err => reset($, `/compress failed: ${err}`))
 }
 
@@ -158,7 +176,9 @@ export const register: Register = (on, options) => {
         $.ui.status(`ctx ${k(chain.tokens)}/${k(threshold)}${auto ? '' : ' (manual)'}`)
       }
     }
-    if (chain.phase !== 'idle' && (await $.clock.now()) - chain.since > STALE_MS) {
+    // Only a command no turn picked up goes stale: a running turn ends on its own.
+    if ((chain.phase === 'compress' || chain.phase === 'whatsnext') && chain.turn === undefined &&
+      (await $.clock.now()) - chain.since > STALE_MS) {
       reset($, `chain stuck in ${chain.phase}, dropped`)
     }
     if (auto && chain.phase === 'idle' && chain.tokens >= Math.max(threshold, chain.base + STEP)) {
@@ -167,9 +187,11 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // The first main-loop turn after queueing a command is that command's turn.
+  // The first main-loop turn after queueing a command is that command's turn;
+  // a subagent's turn must not claim it (its complete is never ours).
   on('turn.start', async ($, e, next) => {
-    if ((chain.phase === 'compress' || chain.phase === 'whatsnext') && chain.turn === undefined) {
+    if (e.agentId === undefined && (chain.phase === 'compress' || chain.phase === 'whatsnext') &&
+      chain.turn === undefined) {
       chain.turn = e.turnId
     }
     return next(e)
@@ -180,10 +202,13 @@ export const register: Register = (on, options) => {
     if (e.agentId !== undefined || e.turnId !== chain.turn) return result
 
     if (chain.phase === 'compress') {
-      const isWritten = (await mtime($, chain.nextPath)) > chain.nextMtime
+      const written = await mtime($, chain.nextPath)
+      const isWritten = written > chain.nextMtime
       // The skill's closing line names /clear: that counts as done too.
       const isClaimed = /\/clear/.test(e.answer)
-      if (e.isAborted || !(isWritten || isClaimed)) {
+      if (!e.isAborted && chain.promptAt > 0 && written <= chain.promptAt) {
+        await compressAgain($, written)
+      } else if (e.isAborted || !(isWritten || isClaimed)) {
         reset($, 'NEXT.md was not written, chain stopped')
       } else {
         void finishChain($)
@@ -218,7 +243,10 @@ export const register: Register = (on, options) => {
   // A prompt the person sent makes the old suggestion stale.
   // After a /clear by hand, the first prompt carries NEXT.md as context.
   on('prompt.submit', async ($, e, next) => {
-    if (e.origin.kind === 'composer') chain.suggestion = undefined
+    if (e.origin.kind === 'composer') {
+      chain.suggestion = undefined
+      if (chain.phase === 'compress') chain.promptAt = await $.clock.now()
+    }
     if (!chain.isAfterClear || chain.phase !== 'idle') return next(e)
     chain.isAfterClear = false
     const note = await nextNote($)
