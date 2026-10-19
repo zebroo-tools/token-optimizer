@@ -35,13 +35,16 @@ URL = os.environ.get("JEV_URL", "http://127.0.0.1:8781/v1/systemone")
 LOG = Path.home() / ".claude" / "token-optimizer" / "triage.log"
 MIN_CHARS = 4000       # ~1k tokens; smaller outputs are not worth judging
 MAX_SEGMENTS = 60      # cap Jev calls on huge sessions
-BATCH = 6
 HEAD, TAIL = 1500, 500
-VERDICTS = {
-    "keep_verbatim": "The exact content is still needed, e.g. code that is being edited, "
-                     "an error that is still being debugged, data still being worked on.",
-    "keep_gist": "Only a few facts or conclusions from it still matter; the full text does not.",
-    "drop": "Obsolete or irrelevant for the remaining work (superseded, dead end, already done).",
+DROP_AT = 0.7          # P(obsolete) needed before a segment counts as droppable
+GOAL_CHARS = 1500      # latest part of the goal; Laya cuts long input short
+# Laya only separates two options, one segment per call, with the state as
+# plain text: batched segments or three verdicts came back close to uniform
+# (droppable=0 on every run until 2026-10-19). So it is asked needed/obsolete
+# and "needed" is reported as keep_gist; keep_verbatim is not judged.
+CRITERIA = {
+    "needed": "The tool output is relevant to the goal or the open items.",
+    "obsolete": "The tool output is unrelated to the goal, superseded or already done.",
 }
 
 
@@ -168,29 +171,21 @@ def goal_text(prompts: list[str], cwd: str) -> str:
     return "\n".join(parts)
 
 
-def judge(batch: list[dict], goal: str) -> dict:
-    state = {
-        "goal": goal,
-        "segments": [
-            {"tool": s["tool"], "target": s["desc"],
-             "excerpt": s["text"][:HEAD] + ("\n[...]\n" + s["text"][-TAIL:] if len(s["text"]) > HEAD + TAIL else "")}
-            for s in batch
-        ],
-    }
-    questions = {
-        f"s{i}": {
-            "type": "choice",
-            "instructions": (f"`segments[{i}]` is a tool output from a coding session whose goal "
-                             "and open items are in `goal`. The session is about to be condensed. "
-                             f"How much of `segments[{i}]` does the remaining work still need?"),
-            "criteria": VERDICTS,
-        }
-        for i in range(len(batch))
-    }
+def judge(s: dict, goal: str) -> float:
+    """P(obsolete) for one segment."""
+    excerpt = s["text"][:HEAD] + ("\n[...]\n" + s["text"][-TAIL:] if len(s["text"]) > HEAD + TAIL else "")
+    # Output first: Laya truncates long input from the end, and with the goal
+    # in front every segment got the same answer.
+    state = f"Tool output ({s['tool']}: {s['desc']}):\n{excerpt}\n\n{goal[-GOAL_CHARS:]}"
+    questions = {"x": {
+        "type": "choice",
+        "instructions": "Does the remaining work toward the goal still need this tool output?",
+        "criteria": CRITERIA,
+    }}
     r = httpx.post(URL, json={"state": state, "questions": questions}, timeout=120)
     if r.status_code >= 400:
         raise RuntimeError(f"Laya HTTP {r.status_code}: {r.text[:300]}")
-    return r.json()["answers"]
+    return r.json()["answers"]["x"]["probabilities"]["obsolete"]
 
 
 def log(transcript: str, msg: str) -> None:
@@ -223,20 +218,17 @@ def main() -> None:
 
     use_jev = "--no-jev" not in sys.argv and bool(segments)
     if use_jev:
-        batches = [segments[i:i + BATCH] for i in range(0, len(segments), BATCH)]
         try:
             with ThreadPoolExecutor(4) as pool:
-                results = list(pool.map(lambda b: judge(b, goal), batches))
+                results = list(pool.map(lambda s: judge(s, goal), segments))
         except (httpx.HTTPError, RuntimeError, KeyError, ValueError) as exc:
             log(args[0], f"segments={len(segments)} laya=failed {type(exc).__name__}")
             print(f"Laya not reachable or failed ({URL}): {exc}")
             sys.exit(2)
-        for b, answers in zip(batches, results):
-            for i, s in enumerate(b):
-                a = answers.get(f"s{i}", {})
-                s["verdict"], s["conf"] = a.get("choice", "?"), a.get("confidence", 0)
-                if s["conf"] < 0.5 and s["verdict"] == "drop":  # unsure -> don't drop
-                    s["verdict"] = "keep_gist"
+        for s, p_obsolete in zip(segments, results):
+            is_drop = p_obsolete >= DROP_AT  # unsure -> don't drop
+            s["verdict"] = "drop" if is_drop else "keep_gist"
+            s["conf"] = p_obsolete if is_drop else 1 - p_obsolete
 
     print(f"# Context triage — {len(segments)} large tool outputs, ~{total // 1000}k tokens")
     if not use_jev:

@@ -1,0 +1,1 @@
+Die Laya-Triage vor /compress sortiert wieder etwas aus: Jede Tool-Ausgabe wird einzeln mit „nötig/überflüssig“ bewertet, Ausgabe vor dem Ziel. Gebündelt und mit drei Optionen kamen fast gleichverteilte Antworten (droppable=0 bei allen Läufen). Braucht laya ≥ 0.4 (0.3.x lud den Checkpoint bei jeder Anfrage neu, ~9 s pro Abschnitt).
