@@ -12,11 +12,11 @@ const TABLE = '# Context triage — 2 large tool outputs, ~9k tokens\n\nDroppabl
 // mtime the test moves, a triage run whose result the test sets, and a log
 // of the slash commands the mod runs (with their arguments).
 function host(engine: Engine, on: On) {
-  const state = { ran: [] as string[], args: [] as string[], argv: [] as string[], triage: { exitCode: 0, stdout: TABLE, stderr: '' }, nextMtime: 0, toasts: [] as string[], shown: [] as string[], appended: [] as string[], context: [] as string[] }
+  const state = { ran: [] as string[], args: [] as string[], argv: [] as string[], triage: { exitCode: 0, stdout: TABLE, stderr: '' }, nextMtime: 0, now: 0, toasts: [] as string[], shown: [] as string[], appended: [] as string[], context: [] as string[] }
   on('session.cwd', () => ({ value: `${TICKET}/ZO-1-repo` }))
   on('fs.exists', (_$, e) => ({ value: e.path === `${TICKET}/TASK.md` }))
   on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: state.nextMtime, isLink: false } }))
-  on('clock.now', () => ({ value: 0 }))
+  on('clock.now', () => ({ value: state.now }))
   on('clock.after', () => ({ value: undefined }))
   on('ui.status', () => ({ value: undefined }))
   on('ui.log', () => ({ value: undefined }))
@@ -67,7 +67,7 @@ async function settle(until: () => boolean) {
   for (let i = 0; i < 1000 && !until(); i++) await Promise.resolve()
 }
 
-test('chain runs /compress, then /clear and /whats-next once NEXT.md is written', async ($, on) => {
+test('chain runs /compress, then /clear and /whats-next once NEXT.md is written', { options: { resume: false } }, async ($, on) => {
   const h = host($, on)
 
   await $.command.run(TYPED)
@@ -113,9 +113,44 @@ test('chain stops without /clear when NEXT.md was not written', async ($, on) =>
   expect(h.toasts[0]).toContain('NEXT.md was not written')
 })
 
+test('a prompt typed into the /compress turn after NEXT.md was written runs /compress again before /clear', async ($, on) => {
+  const h = host($, on)
+
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  h.nextMtime = 10
+  h.now = 20
+  await $.prompt.submit({ text: 'und noch der Dialog', wait: false, turnId: 't1', origin: { kind: 'composer' } })
+  await $.turn.complete({ answer: 'NEXT.md steht, dann /clear', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle(() => h.ran.length >= 2)
+  expect(h.ran).toEqual(['compress', 'compress'])
+  expect(h.args[1]).toContain('Nachtrag vom token-optimizer')
+  expect(h.args[1]).toContain('Droppable: ~4k of ~9k tokens.')
+
+  await $.turn.start({ text: '/compress', turnId: 't2' })
+  h.nextMtime = 30
+  await $.turn.complete({ answer: 'NEXT.md aktualisiert', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' })
+  await settle(() => h.ran.length >= 4)
+  expect(h.ran).toEqual(['compress', 'compress', 'clear', 'go'])
+})
+
+test('a subagent turn does not claim the /compress turn', async ($, on) => {
+  const h = host($, on)
+
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+  await $.turn.start({ text: 'sub', turnId: 'a1', agentId: 'agent-1' })
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  h.nextMtime = 1
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle(() => h.ran.length >= 3)
+  expect(h.ran).toEqual(['compress', 'clear', 'go'])
+})
+
 const ENGINE = { kind: 'suggestion' } as const
 
-test('the dim suggestion from before the chain comes back after /whats-next', async ($, on) => {
+test('the dim suggestion from before the chain comes back after /whats-next', { options: { resume: false } }, async ($, on) => {
   const h = host($, on)
 
   await $.prompt.suggest({ text: 'mach mit Punkt 2 weiter', origin: ENGINE })
@@ -142,7 +177,7 @@ test('the chain hands NEXT.md to the conversation after /clear', { options: { in
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
   await settle(() => h.ran.length >= 3)
 
-  expect(h.ran).toEqual(['compress', 'clear', 'whats-next'])
+  expect(h.ran).toEqual(['compress', 'clear', 'go'])
   expect(h.appended.join()).toContain('1. [ ] weiter')
 })
 
@@ -155,4 +190,54 @@ test('after a /clear by hand the first prompt carries NEXT.md', { options: { inj
 
   expect(h.context.length).toBe(1)
   expect(h.context[0]).toContain('1. [ ] weiter')
+})
+
+const RESUME = { options: { resume: true } } as const
+
+test('with resume the chain carries on with /go after /clear', RESUME, async ($, on) => {
+  const h = host($, on)
+
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  h.nextMtime = 1
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle(() => h.ran.length >= 3)
+
+  expect(h.ran).toEqual(['compress', 'clear', 'go'])
+  expect(h.args[2]).toContain('Fortsetzung nach /clear')
+})
+
+test('the last prompt goes along to /compress so NEXT.md names the current work', RESUME, async ($, on) => {
+  const h = host($, on)
+
+  await $.prompt.submit({ text: 'bau den Export\nfür alle Rechnungen', wait: false, origin: { kind: 'composer' } })
+  await $.command.run(TYPED)
+  await settle(() => h.ran.length >= 1)
+
+  expect(h.args[0]).toContain('> bau den Export\n> für alle Rechnungen')
+  expect(h.args[0]).toContain('Droppable: ~4k of ~9k tokens.')
+})
+
+test('a /clear by hand right after a /compress by hand carries on with /go', RESUME, async ($, on) => {
+  const h = host($, on)
+
+  await $.turn.start({ text: '/compress', turnId: 't1' })
+  await $.turn.complete({ answer: 'NEXT.md steht.\n→ Jetzt /clear eingeben.', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await $.session.end(CLEAR)
+  await new Promise(r => setTimeout(r, 700)) // the mod waits for the /clear to settle
+  await settle(() => h.ran.length >= 1)
+
+  expect(h.ran).toEqual(['go'])
+  expect(h.appended.join()).toContain('1. [ ] weiter')
+})
+
+test('a /clear by hand without a /compress before it does not start /go', RESUME, async ($, on) => {
+  const h = host($, on)
+
+  await $.session.end(CLEAR)
+  await new Promise(r => setTimeout(r, 700)) // the mod waits for the /clear to settle
+  await settle(() => false)
+
+  expect(h.ran).toEqual([])
 })

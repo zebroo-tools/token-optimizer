@@ -52,7 +52,7 @@ class Chain(unittest.TestCase):
         os.utime(self.task / "NEXT.md", (9e9, 9e9))
         self.assertEqual(self.stop(), "new")
         self.assertEqual(self.typed[1][0], [True, "/new"])
-        self.assertIn("whats-next", self.typed[1][1][1])
+        self.assertIn("Skill go", self.typed[1][1][1])
         self.data["transcript_path"] = str(self.rollout(30_000))
         self.assertEqual(self.stop(), "done")
         self.assertEqual(self.stop(), "idle")

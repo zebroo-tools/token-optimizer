@@ -54,6 +54,9 @@ einsortieren, Veraltetes streichen. Das Format oben bleibt kompatibel zu
 ```markdown
 # Next
 
+Wartet auf: niemand | Nutzer: offene Frage | Review: wer, worauf
+Gerade dran: 1 — wo genau es weitergeht (nächster Schritt, Datei, Befehl)
+
 1. [ ] Kurzer Satz, was zu tun ist — (Kontext/warum)
 2. [ ] ...
 
@@ -83,6 +86,14 @@ einsortieren, Veraltetes streichen. Das Format oben bleibt kompatibel zu
 ```
 
 Regeln:
+- **Gerade dran**: Die Arbeit, die beim `/compress` noch nicht fertig ist,
+  steht als Punkt 1 oben, und die Zeile `Gerade dran:` nennt ihre Nummer
+  und den nächsten konkreten Schritt (Datei, Befehl, was als Letztes geprüft
+  wurde). Nach dem `/clear` macht `/go` genau dort weiter, ohne Rückfrage.
+  Hat token-optimizer den letzten Auftrag des Nutzers mitgegeben, ist das der
+  Maßstab dafür, woran gerade gearbeitet wurde. Ist nichts angefangen:
+  `Gerade dran: –`. Wartet die Arbeit auf eine Antwort des Nutzers, gehört
+  das in `Wartet auf:`, nicht in `Gerade dran:`.
 - **Konkret statt Prosa**: Dateipfade, Funktionsnamen, IDs, Befehle, Commits.
 - **Begruendungen sind Pflicht** bei Erkenntnissen und Entscheidungen — genau
   das geht bei `/clear` sonst verloren.
@@ -106,8 +117,8 @@ Regeln:
 `/clear` ist ein eingebautes CLI-Kommando und kann vom Modell nicht selbst
 ausgeloest werden. Hat token-optimizer (`~/ai/token-optimizer`, Plugin
 `token-optimizer`) dieses `/compress` wegen der Kontextgrenze oder per
-`/tokopt-chain` ausgeloest, fuehrt er `/clear` und danach `/whats-next` selbst
-aus - vorausgesetzt, die NEXT.md wurde in diesem Zug geschrieben. Sonst tippt
-der User `/clear`. Nach dem Clear bekommt die neue Sitzung die NEXT.md
-automatisch als Kontext (auch nach einem `/clear` von Hand, dann mit dem
-ersten Prompt); weiter mit `/go`.
+`/tokopt-chain` ausgeloest, fuehrt er `/clear` und danach `/go` selbst aus
+(Fortsetzung bei `Gerade dran:`) - vorausgesetzt, die NEXT.md wurde in
+diesem Zug geschrieben. Sonst tippt der User `/clear`; auch dann startet
+token-optimizer danach `/go`, wenn dieses `/compress` kurz vorher lief. Die
+neue Sitzung bekommt die NEXT.md automatisch als Kontext.

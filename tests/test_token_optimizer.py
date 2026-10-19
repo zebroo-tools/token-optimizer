@@ -57,6 +57,15 @@ class Install(unittest.TestCase):
         self.assertIn(("marketplace", "add", str(to.ROOT)), self.calls)
         self.assertIn(("install", to.PLUGIN, "--scope", "user"), self.calls)
 
+    def test_links_the_opencode_plugin_when_opencode_is_there(self):
+        (self.tmp / ".config" / "opencode").mkdir(parents=True)
+        with mock.patch("builtins.print"):
+            to.install()
+            to.install()  # idempotent
+        dst = self.tmp / ".config" / "opencode" / "plugin" / "token-optimizer.js"
+        self.assertEqual(dst.resolve(), to.OPENCODE_PLUGIN)
+        self.assertEqual((self.tmp / ".claude" / "skills" / "go").resolve(), to.ROOT / "skills" / "go")
+
     def test_existing_marketplace_is_fine(self):
         def fake_claude(*args):
             self.calls.append(args)

@@ -20,12 +20,20 @@ Eine kurze Liste. Sonst nichts.
 ```markdown
 # Next
 
+Wartet auf: niemand | Nutzer: offene Frage | Review: wer, worauf
+Gerade dran: 1 — wo genau es weitergeht
+
 1. [ ] Kurzer Satz, was zu tun ist — optional: warum/Kontext in Klammern
 2. [ ] ...
 
 ## Erledigt
 - [x] 2026-09-13 Was fertig ist
 ```
+
+Stripe Commander liest diese Datei als Stand der Aufgabe für den Maschinenraum
+(die ersten offenen und erledigten Punkte, jeweils bis zum ersten „ — “ oder
+„(“, plus die Zeile „Wartet auf:“). Deshalb: der Kernsatz vorn, ohne Pfade,
+Zugangsdaten oder Kundendetails; Erklärungen erst nach dem „ — “.
 
 Fehlt die Datei: **einmal** aus dem vorhandenen Material aufbauen — `TASK.md`,
 `DEPLOY.md`, Review-/Befund-Notizen im Ordner, offene PRs im zugehoerigen Repo
