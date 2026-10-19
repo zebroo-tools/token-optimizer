@@ -54,6 +54,8 @@ einsortieren, Veraltetes streichen. Das Format oben bleibt kompatibel zu
 ```markdown
 # Next
 
+Wartet auf: niemand | Nutzer: offene Frage | Review: wer, worauf
+
 1. [ ] Kurzer Satz, was zu tun ist — (Kontext/warum)
 2. [ ] ...
 
