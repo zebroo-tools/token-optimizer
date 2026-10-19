@@ -1,0 +1,1 @@
+Nach /compress → /clear arbeitet die Sitzung von selbst weiter: statt nur /whats-next läuft /go und setzt bei der Zeile „Gerade dran:“ in NEXT.md an, die /compress jetzt mit dem letzten Auftrag des Nutzers füllt. Gilt auch für /compress und /clear von Hand (innerhalb von 30 Minuten) und für Codex; abschaltbar mit der Option `resume`. Der Skill /go liegt jetzt im Repo.

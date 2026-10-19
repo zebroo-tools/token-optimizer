@@ -8,7 +8,7 @@ matters:
 
     /compress   -> the session writes its state into NEXT.md
     /clear      -> fresh session that gets NEXT.md handed over
-    /whats-next -> the new session lists the open items
+    /go         -> the new session carries on where NEXT.md says ("Gerade dran:")
 
 The chain itself runs in the Claude Code mod in plugin/ (function hooks,
 plugin/hooks/register.ts). This script only installs everything:
@@ -17,7 +17,9 @@ plugin/hooks/register.ts). This script only installs everything:
                the settings hooks of earlier versions and installs the plugin
                from this folder (marketplace "token-optimizer"); for Codex it
                links the skills into ~/.codex/skills and registers the Stop
-               hook in ~/.codex/config.toml (chain in codex_chain.py)
+               hook in ~/.codex/config.toml (chain in codex_chain.py); for
+               opencode it links opencode/token-optimizer.js into
+               ~/.config/opencode/plugin
     codex-stop the Codex Stop hook (payload on stdin)
 
 stop, session-start and prompt were the settings hooks of earlier versions.
@@ -33,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 TRIAGE = ROOT / "hooks" / "jev-context-triage.py"
-SKILLS = ("compress", "whats-next")
+SKILLS = ("compress", "whats-next", "go")
 PLUGIN = "token-optimizer@token-optimizer"
 
 # Settings hooks this tool used to register, or replaced; install removes them.
@@ -126,6 +128,7 @@ def install() -> None:
 
     install_plugin()
     install_codex(backup)
+    install_opencode(backup)
     print(f"backup: {backup}")
 
 
@@ -182,6 +185,27 @@ def install_codex(backup: Path) -> None:
         shutil.copy2(cfg, backup / "codex-config.toml")
     cfg.write_text(new)
     print(f"Codex Stop hook in {cfg} — Codex asks once to trust it (\"New hook — review required\")")
+
+
+# --- opencode ------------------------------------------------------------------
+
+OPENCODE_PLUGIN = ROOT / "opencode" / "token-optimizer.js"
+
+
+def install_opencode(backup: Path) -> None:
+    """opencode loads every file in ~/.config/opencode/plugin; the skills it
+    reads from ~/.claude/skills itself."""
+    cfg = home() / ".config" / "opencode"
+    if not cfg.is_dir():
+        return
+    dst = cfg / "plugin" / OPENCODE_PLUGIN.name
+    if dst.is_symlink() and dst.resolve() == OPENCODE_PLUGIN:
+        return
+    if dst.exists() or dst.is_symlink():
+        shutil.move(str(dst), backup / f"opencode-{dst.name}")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.symlink_to(OPENCODE_PLUGIN)
+    print(f"{dst} -> {OPENCODE_PLUGIN}")
 
 
 def main() -> None:

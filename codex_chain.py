@@ -10,7 +10,8 @@ session reaches the threshold, it types into the session's tile through
 
     compress prompt  -> the session writes its state into NEXT.md
     /new             -> fresh conversation (Codex' /clear)
-    whats-next prompt-> the new conversation lists the open items
+    go prompt        -> the new conversation carries on with the work NEXT.md
+                        names under "Gerade dran:"
 
 Before the compress prompt the detached typer runs the Laya triage
 (hooks/jev-context-triage.py) on the rollout and leaves its table in a file the
@@ -44,11 +45,13 @@ TRIAGE = Path(__file__).resolve().parent / "hooks" / "jev-context-triage.py"
 
 COMPRESS = ("Kontext ist voll ({k}): Führe jetzt den Skill compress aus — "
             "schreib Stand, offene Punkte, Begründungen und Freigaben in NEXT.md im "
-            "Ticket-Ordner (Anleitung: ~/.codex/skills/compress/SKILL.md). Die Laya-Triage "
+            "Ticket-Ordner (Anleitung: ~/.codex/skills/compress/SKILL.md); woran du gerade "
+            "arbeitest, gehört in die Zeile „Gerade dran:“. Die Laya-Triage "
             "ist schon gelaufen, nicht erneut starten: Ergebnis in {triage}. Danach nichts weiter.")
-WHATS_NEXT = ("Weiter nach /new: Führe den Skill whats-next aus "
-              "(~/.codex/skills/whats-next/SKILL.md) — lies TASK.md und NEXT.md im Ticket-Ordner "
-              "und liste kurz, was ansteht.")
+GO = ("Fortsetzung nach /clear (token-optimizer, Codex: /new): Führe den Skill go aus "
+      "(~/.codex/skills/go/SKILL.md) — lies TASK.md und NEXT.md im Ticket-Ordner und mach beim "
+      "Punkt aus „Gerade dran:“ weiter, sonst Punkt 1. Wartet NEXT.md auf den Nutzer, nur dessen "
+      "Frage stellen.")
 
 
 def data_dir() -> Path:
@@ -214,15 +217,15 @@ def on_stop(data: dict, typer=spawn) -> str:
 
     if phase == "compress":
         if mtime(nxt) > st.get("next_mtime", 0):
-            typer(task, [[True, "/new"], [False, WHATS_NEXT]])
-            save_state(task, phase="whatsnext", base=0)
-            log(f"{task}: NEXT.md written, /new + whats-next")
+            typer(task, [[True, "/new"], [False, GO]])
+            save_state(task, phase="resume", base=0)
+            log(f"{task}: NEXT.md written, /new + go")
             return "new"
         save_state(task, phase="idle", base=tokens)
         log(f"{task}: NEXT.md not written in the compress turn, chain stopped")
         return "stopped"
 
-    if phase == "whatsnext":
+    if phase in ("resume", "whatsnext"):  # whatsnext: state from before 0.3
         # The first turn of the fresh conversation: its size is the new base.
         save_state(task, phase="idle", base=tokens)
         return "done"

@@ -21,6 +21,7 @@ Eine kurze Liste. Sonst nichts.
 # Next
 
 Wartet auf: niemand | Nutzer: offene Frage | Review: wer, worauf
+Gerade dran: 1 — wo genau es weitergeht
 
 1. [ ] Kurzer Satz, was zu tun ist — optional: warum/Kontext in Klammern
 2. [ ] ...
