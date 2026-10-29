@@ -47,8 +47,19 @@ weitermachen. Jeder Lauf hinterlaesst eine Zeile in
 ## 2. NEXT.md schreiben / aktualisieren
 
 Existiert die Datei schon: **ergaenzen und bereinigen, nicht blind
-ueberschreiben** — Erledigtes nach `## Erledigt` (mit Datum), neue Punkte
-einsortieren, Veraltetes streichen. Das Format oben bleibt kompatibel zu
+ueberschreiben** — neue Punkte einsortieren, Veraltetes streichen.
+
+**Groesse begrenzen (Pflicht):** Die NEXT.md wird nach jedem `/clear`
+komplett in den Kontext geladen und kostet bei jedem Turn Tokens. Sie
+bleibt deshalb **unter ~10 KB**:
+- Erledigte Punkte (`[x]`) kommen NICHT in die NEXT.md, sondern werden mit
+  Datum oben in `NEXT-archiv.md` (gleicher Ordner) angehaengt. In der NEXT.md
+  bleibt hoechstens der Abschnitt `## Erledigt` mit den letzten ~5 Punkten.
+- Alte `## Stand (...)`-Abschnitte: nur der neueste bleibt, aeltere ins Archiv.
+- Erkenntnisse/Stolpersteine, die fuer die offenen Punkte nicht mehr
+  gebraucht werden, ebenfalls ins Archiv.
+- Erste Zeile nach `# Next`: Hinweis, dass `NEXT-archiv.md` existiert (nur
+  per grep lesen, nie komplett). Das Format oben bleibt kompatibel zu
 `/whats-next` und `/go` (nummerierte Liste zuerst).
 
 ```markdown
@@ -81,7 +92,7 @@ Gerade dran: 1 — wo genau es weitergeht (nächster Schritt, Datei, Befehl)
 - Nicht-offensichtliche Befehle, Pfade, Flags, die in der Sitzung gebraucht
   wurden
 
-## Erledigt
+## Erledigt (nur die letzten ~5, Rest in NEXT-archiv.md)
 - [x] YYYY-MM-DD Was fertig ist
 ```
 
