@@ -50,8 +50,9 @@ COMPRESS = ("Kontext ist voll ({k}): Führe jetzt den Skill compress aus — "
             "ist schon gelaufen, nicht erneut starten: Ergebnis in {triage}. Danach nichts weiter.")
 GO = ("Fortsetzung nach /clear (token-optimizer, Codex: /new): Führe den Skill go aus "
       "(~/.codex/skills/go/SKILL.md) — lies TASK.md und NEXT.md im Ticket-Ordner und mach beim "
-      "Punkt aus „Gerade dran:“ weiter, sonst Punkt 1. Wartet NEXT.md auf den Nutzer, nur dessen "
-      "Frage stellen.")
+      "Punkt aus „Gerade dran:“ weiter, sonst Punkt 1. Wartet NEXT.md auf den Nutzer: die Frage "
+      "kurz nennen, aber nicht anhalten, sondern mit dem nächsten Punkt weitermachen, der nicht von "
+      "der Antwort abhängt.")
 
 
 def data_dir() -> Path:

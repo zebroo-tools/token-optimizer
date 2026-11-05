@@ -1,0 +1,1 @@
+Wartet NEXT.md nach /compress → /clear auf eine Antwort des Nutzers, hält /go nicht mehr an: die offene Frage wird kurz genannt, und die Sitzung macht mit dem nächsten Punkt weiter, der nicht von der Antwort abhängt. Nur wenn alle offenen Punkte an einer Antwort hängen, wird bloß gefragt.

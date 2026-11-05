@@ -1,6 +1,6 @@
 {
   "name": "token-optimizer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Hands a session over to a fresh one at a context threshold: /compress, /clear, /go, with NEXT.md carried over",
   "author": {
     "name": "Zebroo GmbH"

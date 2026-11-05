@@ -39,7 +39,8 @@ export const COMPRESS = (k, lastPrompt) =>
 export const GO =
   "Fortsetzung nach /clear (token-optimizer, opencode: neue Sitzung): Führe den Skill go aus " +
   "(~/.claude/skills/go/SKILL.md) — lies TASK.md und NEXT.md im Ticket-Ordner und mach beim Punkt " +
-  "aus „Gerade dran:“ weiter, sonst Punkt 1. Wartet NEXT.md auf den Nutzer, nur dessen Frage stellen."
+  "aus „Gerade dran:“ weiter, sonst Punkt 1. Wartet NEXT.md auf den Nutzer: die Frage kurz nennen, " +
+  "aber nicht anhalten, sondern mit dem nächsten Punkt weitermachen, der nicht von der Antwort abhängt."
 
 const exists = p => access(p).then(() => true, () => false)
 const mtime = p => stat(p).then(s => s.mtimeMs, () => 0)
