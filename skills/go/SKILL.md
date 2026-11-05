@@ -29,8 +29,11 @@ Arbeit. Dann:
 - Den Punkt aus der Zeile `Gerade dran:` in `NEXT.md` nehmen und **bei dem
   dort genannten Schritt weitermachen** — nicht von vorn anfangen, nicht
   erst auflisten. Fehlt die Zeile oder steht `–` darin: Punkt 1.
-- Steht unter `Wartet auf:` eine offene Frage an den Nutzer: nicht arbeiten,
-  sondern nur diese Frage stellen.
+- Steht unter `Wartet auf:` eine offene Frage an den Nutzer: **nicht
+  anhalten.** Die Frage in einer Zeile nennen und mit dem nächsten Punkt aus
+  `NEXT.md` weitermachen, der nicht von der Antwort abhängt (der Reihe nach,
+  dringende Punkte zuerst). Erst wenn wirklich jeder offene Punkt an einer
+  Antwort hängt: nur die Frage(n) stellen.
 - Den Ist-Zustand kurz prüfen (git status, Datei, laufender Prozess), bevor
   weitergemacht wird: was vor dem `/clear` schon erledigt war, nicht doppelt
   tun.
@@ -75,7 +78,8 @@ zurueckdrehbar sind.
    blieb. Keine Nacherzaehlung jedes Schrittes.
 
 Danach aufhoeren. Nicht ungefragt den naechsten Punkt anfangen — dafuer gibt es
-wieder `/go`.
+wieder `/go`. (Ausnahme oben: bei der Fortsetzung nach /clear wird ein Punkt,
+der auf den Nutzer wartet, übersprungen und der nächste genommen.)
 
 ## Wann nachgefragt wird
 

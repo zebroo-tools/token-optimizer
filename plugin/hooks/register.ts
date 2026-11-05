@@ -18,7 +18,8 @@ const LAST_PROMPT_MAX = 1_500 // chars of the last prompt handed to /compress
 
 // What /go gets after /clear; the go skill knows this opening.
 const GO_ARGS = 'Fortsetzung nach /clear (token-optimizer): beim Punkt aus „Gerade dran:“ in NEXT.md ' +
-  'weitermachen, sonst Punkt 1. Wartet NEXT.md auf den Nutzer, nur dessen Frage stellen.'
+  'weitermachen, sonst Punkt 1. Wartet NEXT.md auf den Nutzer: die Frage kurz nennen, aber nicht anhalten, ' +
+  'sondern mit dem nächsten Punkt weitermachen, der nicht von der Antwort abhängt.'
 
 type Phase = 'idle' | 'compress' | 'clear' | 'resume'
 
